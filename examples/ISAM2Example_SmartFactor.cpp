@@ -4,7 +4,8 @@
  * @author Alexander (pumaking on BitBucket)
  */
 
-#include <gtsam/geometry/SimpleCamera.h>
+#include <gtsam/geometry/PinholeCamera.h>
+#include <gtsam/geometry/Cal3_S2.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/SmartProjectionPoseFactor.h>
@@ -56,7 +57,7 @@ int main(int argc, char* argv[]) {
   vector<Pose3> poses = {pose1, pose2, pose3, pose4, pose5};
 
   // Add first pose
-  graph.emplace_shared<PriorFactor<Pose3>>(X(0), poses[0], noise);
+  graph.addPrior(X(0), poses[0], noise);
   initialEstimate.insert(X(0), poses[0].compose(delta));
 
   // Create smart factor with measurement from first pose only
@@ -70,7 +71,7 @@ int main(int argc, char* argv[]) {
     cout << "i = " << i << endl;
 
     // Add prior on new pose
-    graph.emplace_shared<PriorFactor<Pose3>>(X(i), poses[i], noise);
+    graph.addPrior(X(i), poses[i], noise);
     initialEstimate.insert(X(i), poses[i].compose(delta));
 
     // "Simulate" measurement from this pose
@@ -86,9 +87,8 @@ int main(int argc, char* argv[]) {
     result.print();
 
     cout << "Detailed results:" << endl;
-    for (auto keyedStatus : result.detail->variableStatus) {
-      const auto& status = keyedStatus.second;
-      PrintKey(keyedStatus.first);
+    for (auto& [key, status] : result.detail->variableStatus) {
+      PrintKey(key);
       cout << " {" << endl;
       cout << "reeliminated: " << status.isReeliminated << endl;
       cout << "relinearized above thresh: " << status.isAboveRelinThreshold
@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
     Values currentEstimate = isam.calculateEstimate();
     currentEstimate.print("Current estimate: ");
 
-    boost::optional<Point3> pointEstimate = smartFactor->point(currentEstimate);
+    auto pointEstimate = smartFactor->point(currentEstimate);
     if (pointEstimate) {
       cout << *pointEstimate << endl;
     } else {

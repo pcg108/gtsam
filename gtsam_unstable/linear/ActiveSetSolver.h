@@ -20,7 +20,6 @@
 
 #include <gtsam/linear/GaussianFactorGraph.h>
 #include <gtsam_unstable/linear/InequalityFactorGraph.h>
-#include <boost/range/adaptor/map.hpp>
 
 namespace gtsam {
 
@@ -102,7 +101,7 @@ protected:
   /**
    * Compute minimum step size alpha to move from the current point @p xk to the
    * next feasible point along a direction @p p:  x' = xk + alpha*p,
-   * where alpha \in [0,maxAlpha].
+   * where alpha \f$\in\f$ [0,maxAlpha].
    *
    * For QP, maxAlpha = 1. For LP: maxAlpha = Inf.
    *
@@ -114,7 +113,7 @@ protected:
    * If there is a blocking constraint, the closest one will be added to the
    * working set and become active in the next iteration.
    */
-  boost::tuple<double, int> computeStepSize(
+  std::tuple<double, int> computeStepSize(
       const InequalityFactorGraph& workingSet, const VectorValues& xk,
       const VectorValues& p, const double& maxAlpha) const;
 
@@ -154,8 +153,8 @@ protected:
 public: /// Just for testing...
 
   /// Builds a dual graph from the current working set.
-  GaussianFactorGraph::shared_ptr buildDualGraph(
-      const InequalityFactorGraph& workingSet, const VectorValues& delta) const;
+  GaussianFactorGraph buildDualGraph(const InequalityFactorGraph &workingSet,
+                                     const VectorValues &delta) const;
 
   /**
    * Build a working graph of cost, equality and active inequality constraints

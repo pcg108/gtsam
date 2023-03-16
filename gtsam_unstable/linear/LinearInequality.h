@@ -34,7 +34,7 @@ class LinearInequality: public JacobianFactor {
 public:
   typedef LinearInequality This; ///< Typedef to this class
   typedef JacobianFactor Base; ///< Typedef to base class
-  typedef boost::shared_ptr<This> shared_ptr; ///< shared_ptr to this class
+  typedef std::shared_ptr<This> shared_ptr; ///< shared_ptr to this class
 
 private:
   Key dualKey_;
@@ -96,17 +96,17 @@ public:
   }
 
   /** Virtual destructor */
-  virtual ~LinearInequality() {
+  ~LinearInequality() override {
   }
 
   /** equals */
-  virtual bool equals(const GaussianFactor& lf, double tol = 1e-9) const {
+  bool equals(const GaussianFactor& lf, double tol = 1e-9) const override {
     return Base::equals(lf, tol);
   }
 
   /** print */
-  virtual void print(const std::string& s = "", const KeyFormatter& formatter =
-      DefaultKeyFormatter) const {
+  void print(const std::string& s = "", const KeyFormatter& formatter =
+      DefaultKeyFormatter) const override {
     if (active())
       Base::print(s + "  Active", formatter);
     else
@@ -114,9 +114,9 @@ public:
   }
 
   /** Clone this LinearInequality */
-  virtual GaussianFactor::shared_ptr clone() const {
-    return boost::static_pointer_cast < GaussianFactor
-        > (boost::make_shared < LinearInequality > (*this));
+  GaussianFactor::shared_ptr clone() const override {
+    return std::static_pointer_cast < GaussianFactor
+        > (std::make_shared < LinearInequality > (*this));
   }
 
   /// dual key
@@ -145,7 +145,7 @@ public:
   }
 
   /** Special error for single-valued inequality constraints. */
-  virtual double error(const VectorValues& c) const {
+  double error(const VectorValues& c) const override {
     return error_vector(c)[0];
   }
 

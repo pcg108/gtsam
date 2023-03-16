@@ -10,7 +10,7 @@
  * -------------------------------------------------------------------------- */
 
 /**
- * @file    SFMMdata.h
+ * @file    SFMdata.h
  * @brief   Simple example for the structure-from-motion problems
  * @author  Duy-Nguyen Ta
  */
@@ -22,6 +22,8 @@
  * Passing function argument allows to specificy an initial position, a pose increment and step count.
  */
 
+#pragma once
+
 // As this is a full 3D problem, we will use Pose3 variables to represent the camera
 // positions and Point3 variables (x, y, z) to represent the landmark coordinates.
 // Camera observations of landmarks (i.e. pixel coordinates) will be stored as Point2 (x, y).
@@ -30,7 +32,8 @@
 #include <gtsam/geometry/Point3.h>
 
 // We will also need a camera object to hold calibration information and perform projections.
-#include <gtsam/geometry/SimpleCamera.h>
+#include <gtsam/geometry/PinholeCamera.h>
+#include <gtsam/geometry/Cal3_S2.h>
 
 /* ************************************************************************* */
 std::vector<gtsam::Point3> createPoints() {

@@ -28,13 +28,12 @@
 #include <gtsam_unstable/nonlinear/ConcurrentBatchSmoother.h>
 
 // We will compare the results to a similar Fixed-Lag Smoother
-#include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
+#include <gtsam/nonlinear/BatchFixedLagSmoother.h>
 
 // In GTSAM, measurement functions are represented as 'factors'. Several common factors
 // have been provided with the library for solving robotics/SLAM/Bundle Adjustment problems.
 // Here we will use Between factors for the relative motion described by odometry measurements.
 // Also, we will initialize the robot at the origin using a Prior factor.
-#include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 
 // When the factors are created, we will add them to a Factor Graph. As the factors we are using
@@ -86,7 +85,7 @@ int main(int argc, char** argv) {
   Pose2 priorMean(0.0, 0.0, 0.0); // prior at origin
   auto priorNoise = noiseModel::Diagonal::Sigmas(Vector3(0.3, 0.3, 0.1));
   Key priorKey = 0;
-  newFactors.push_back(PriorFactor<Pose2>(priorKey, priorMean, priorNoise));
+  newFactors.addPrior(priorKey, priorMean, priorNoise);
   newValues.insert(priorKey, priorMean); // Initialize the first pose at the mean of the prior
   newTimestamps[priorKey] = 0.0; // Set the timestamp associated with this key to 0.0 seconds;
 
@@ -309,12 +308,12 @@ int main(int argc, char** argv) {
   // And to demonstrate the fixed-lag aspect, print the keys contained in each smoother after 3.0 seconds
   cout << "After 15.0 seconds, each version contains to the following keys:" << endl;
   cout << "  Concurrent Filter Keys: " << endl;
-  for(const auto& key_value: concurrentFilter.getLinearizationPoint()) {
-    cout << setprecision(5) << "    Key: " << key_value.key << endl;
+  for(const auto key: concurrentFilter.getLinearizationPoint().keys()) {
+    cout << setprecision(5) << "    Key: " << key << endl;
   }
   cout << "  Concurrent Smoother Keys: " << endl;
-  for(const auto& key_value: concurrentSmoother.getLinearizationPoint()) {
-    cout << setprecision(5) << "    Key: " << key_value.key << endl;
+  for(const auto key: concurrentSmoother.getLinearizationPoint().keys()) {
+    cout << setprecision(5) << "    Key: " << key << endl;
   }
   cout << "  Fixed-Lag Smoother Keys: " << endl;
   for(const auto& key_timestamp: fixedlagSmoother.timestamps()) {

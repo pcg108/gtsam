@@ -23,14 +23,13 @@
  */
 
 // This example demonstrates the use of the Fixed-Lag Smoothers in GTSAM unstable
-#include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>
+#include <gtsam/nonlinear/BatchFixedLagSmoother.h>
 #include <gtsam_unstable/nonlinear/IncrementalFixedLagSmoother.h>
 
 // In GTSAM, measurement functions are represented as 'factors'. Several common factors
 // have been provided with the library for solving robotics/SLAM/Bundle Adjustment problems.
 // Here we will use Between factors for the relative motion described by odometry measurements.
 // Also, we will initialize the robot at the origin using a Prior factor.
-#include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 
 // When the factors are created, we will add them to a Factor Graph. As the factors we are using
@@ -80,7 +79,7 @@ int main(int argc, char** argv) {
   Pose2 priorMean(0.0, 0.0, 0.0); // prior at origin
   noiseModel::Diagonal::shared_ptr priorNoise = noiseModel::Diagonal::Sigmas(Vector3(0.3, 0.3, 0.1));
   Key priorKey = 0;
-  newFactors.push_back(PriorFactor<Pose2>(priorKey, priorMean, priorNoise));
+  newFactors.addPrior(priorKey, priorMean, priorNoise);
   newValues.insert(priorKey, priorMean); // Initialize the first pose at the mean of the prior
   newTimestamps[priorKey] = 0.0; // Set the timestamp associated with this key to 0.0 seconds;
 
@@ -153,7 +152,7 @@ int main(int argc, char** argv) {
   auto &factorGraph = smootherISAM2.getFactors();
 
   // Linearize to a Gaussian factor graph
-  boost::shared_ptr<GaussianFactorGraph> linearGraph = factorGraph.linearize(result);
+  std::shared_ptr<GaussianFactorGraph> linearGraph = factorGraph.linearize(result);
 
   // Converts the linear graph into a Jacobian factor and extracts the Jacobian matrix
   Matrix jacobian = linearGraph->jacobian().first;

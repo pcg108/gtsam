@@ -38,8 +38,8 @@ class GTSAM_EXPORT ISAM2Clique
  public:
   typedef ISAM2Clique This;
   typedef BayesTreeCliqueBase<This, GaussianFactorGraph> Base;
-  typedef boost::shared_ptr<This> shared_ptr;
-  typedef boost::weak_ptr<This> weak_ptr;
+  typedef std::shared_ptr<This> shared_ptr;
+  typedef std::weak_ptr<This> weak_ptr;
   typedef GaussianConditional ConditionalType;
   typedef ConditionalType::shared_ptr sharedConditional;
 
@@ -85,7 +85,7 @@ class GTSAM_EXPORT ISAM2Clique
 
   /** print this node */
   void print(const std::string& s = "",
-             const KeyFormatter& formatter = DefaultKeyFormatter) const;
+             const KeyFormatter& formatter = DefaultKeyFormatter) const override;
 
   void optimizeWildfire(const KeySet& replaced, double threshold,
                         KeySet* changed, VectorValues* delta,
@@ -146,6 +146,7 @@ class GTSAM_EXPORT ISAM2Clique
   void restoreFromOriginals(const Vector& originalValues,
                             VectorValues* delta) const;
 
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   /** Serialization function */
   friend class boost::serialization::access;
   template <class ARCHIVE>
@@ -154,6 +155,7 @@ class GTSAM_EXPORT ISAM2Clique
     ar& BOOST_SERIALIZATION_NVP(cachedFactor_);
     ar& BOOST_SERIALIZATION_NVP(gradientContribution_);
   }
+#endif
 };  // \struct ISAM2Clique
 
 /**

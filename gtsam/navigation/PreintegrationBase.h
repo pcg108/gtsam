@@ -32,25 +32,6 @@
 
 namespace gtsam {
 
-#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V4
-/// @deprecated
-struct PoseVelocityBias {
-  Pose3 pose;
-  Vector3 velocity;
-  imuBias::ConstantBias bias;
-  PoseVelocityBias(const Pose3& _pose, const Vector3& _velocity,
-      const imuBias::ConstantBias _bias) :
-      pose(_pose), velocity(_velocity), bias(_bias) {
-  }
-  PoseVelocityBias(const NavState& navState, const imuBias::ConstantBias _bias) :
-      pose(navState.pose()), velocity(navState.velocity()), bias(_bias) {
-  }
-  NavState navState() const {
-    return NavState(pose, velocity);
-  }
-};
-#endif
-
 /**
  * PreintegrationBase is the base class for PreintegratedMeasurements
  * (in ImuFactor) and CombinedPreintegratedMeasurements (in CombinedImuFactor).
@@ -63,12 +44,7 @@ class GTSAM_EXPORT PreintegrationBase {
   typedef PreintegrationParams Params;
 
  protected:
-  /// Parameters. Declared mutable only for deprecated predict method.
-  /// TODO(frank): make const once deprecated method is removed
-#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V4
-  mutable
-#endif
-  boost::shared_ptr<Params> p_;
+  std::shared_ptr<Params> p_;
 
   /// Acceleration and gyro bias used for preintegration
   Bias biasHat_;
@@ -91,7 +67,7 @@ class GTSAM_EXPORT PreintegrationBase {
    *  @param p    Parameters, typically fixed in a single application
    *  @param bias Current estimate of acceleration and rotation rate biases
    */
-  PreintegrationBase(const boost::shared_ptr<Params>& p,
+  PreintegrationBase(const std::shared_ptr<Params>& p,
       const imuBias::ConstantBias& biasHat = imuBias::ConstantBias());
 
   /// @}
@@ -112,21 +88,16 @@ class GTSAM_EXPORT PreintegrationBase {
   }
 
   /// shared pointer to params
-  const boost::shared_ptr<Params>& params() const {
+  const std::shared_ptr<Params>& params() const {
     return p_;
   }
 
   /// const reference to params
-  const Params& p() const {
-    return *boost::static_pointer_cast<Params>(p_);
+  Params& p() const {
+    return *p_;
   }
 
-#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V4
-  void set_body_P_sensor(const Pose3& body_P_sensor) {
-    p_->body_P_sensor = body_P_sensor;
-  }
-#endif
-/// @}
+  /// @}
 
   /// @name Instance variables access
   /// @{
@@ -145,7 +116,7 @@ class GTSAM_EXPORT PreintegrationBase {
   /// @name Testable
   /// @{
   GTSAM_EXPORT friend std::ostream& operator<<(std::ostream& os, const PreintegrationBase& pim);
-  virtual void print(const std::string& s) const;
+  virtual void print(const std::string& s="") const;
   /// @}
 
   /// @name Main functionality
@@ -158,9 +129,9 @@ class GTSAM_EXPORT PreintegrationBase {
    */
   std::pair<Vector3, Vector3> correctMeasurementsBySensorPose(
       const Vector3& unbiasedAcc, const Vector3& unbiasedOmega,
-      OptionalJacobian<3, 3> correctedAcc_H_unbiasedAcc = boost::none,
-      OptionalJacobian<3, 3> correctedAcc_H_unbiasedOmega = boost::none,
-      OptionalJacobian<3, 3> correctedOmega_H_unbiasedOmega = boost::none) const;
+      OptionalJacobian<3, 3> correctedAcc_H_unbiasedAcc = {},
+      OptionalJacobian<3, 3> correctedAcc_H_unbiasedOmega = {},
+      OptionalJacobian<3, 3> correctedOmega_H_unbiasedOmega = {}) const;
 
   /**
    *  Update preintegrated measurements and get derivatives
@@ -177,12 +148,12 @@ class GTSAM_EXPORT PreintegrationBase {
   /// Given the estimate of the bias, return a NavState tangent vector
   /// summarizing the preintegrated IMU measurements so far
   virtual Vector9 biasCorrectedDelta(const imuBias::ConstantBias& bias_i,
-      OptionalJacobian<9, 6> H = boost::none) const = 0;
+      OptionalJacobian<9, 6> H = {}) const = 0;
 
   /// Predict state at time j
   NavState predict(const NavState& state_i, const imuBias::ConstantBias& bias_i,
-                   OptionalJacobian<9, 9> H1 = boost::none,
-                   OptionalJacobian<9, 6> H2 = boost::none) const;
+                   OptionalJacobian<9, 9> H1 = {},
+                   OptionalJacobian<9, 6> H2 = {}) const;
 
   /// Calculate error given navStates
   Vector9 computeError(const NavState& state_i, const NavState& state_j,
@@ -196,25 +167,25 @@ class GTSAM_EXPORT PreintegrationBase {
    */
   Vector9 computeErrorAndJacobians(const Pose3& pose_i, const Vector3& vel_i,
       const Pose3& pose_j, const Vector3& vel_j,
-      const imuBias::ConstantBias& bias_i, OptionalJacobian<9, 6> H1 =
-          boost::none, OptionalJacobian<9, 3> H2 = boost::none,
-      OptionalJacobian<9, 6> H3 = boost::none, OptionalJacobian<9, 3> H4 =
-          boost::none, OptionalJacobian<9, 6> H5 = boost::none) const;
+      const imuBias::ConstantBias& bias_i, 
+      OptionalJacobian<9, 6> H1 = {}, OptionalJacobian<9, 3> H2 = {},
+      OptionalJacobian<9, 6> H3 = {}, OptionalJacobian<9, 3> H4 = {}, 
+      OptionalJacobian<9, 6> H5 = {}) const;
 
-#ifdef GTSAM_ALLOW_DEPRECATED_SINCE_V4
-  /// @name Deprecated
-  /// @{
-
-  /// @deprecated predict
-  PoseVelocityBias predict(const Pose3& pose_i, const Vector3& vel_i,
-      const imuBias::ConstantBias& bias_i, const Vector3& n_gravity,
-      const Vector3& omegaCoriolis, const bool use2ndOrderCoriolis = false) const;
-
-  /// @}
+ private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
+  /** Serialization function */
+  friend class boost::serialization::access;
+  template<class ARCHIVE>
+  void serialize(ARCHIVE & ar, const unsigned int /*version*/) {
+    ar & BOOST_SERIALIZATION_NVP(p_);
+    ar & BOOST_SERIALIZATION_NVP(biasHat_);
+    ar & BOOST_SERIALIZATION_NVP(deltaTij_);
+  }
 #endif
 
  public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  GTSAM_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  /// namespace gtsam

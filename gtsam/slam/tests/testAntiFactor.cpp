@@ -18,7 +18,6 @@
 #include <CppUnitLite/TestHarness.h>
 
 #include <gtsam/slam/AntiFactor.h>
-#include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/nonlinear/NonlinearOptimizer.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
@@ -62,7 +61,7 @@ TEST( AntiFactor, NegativeHessian)
 
   // Linearize the AntiFactor into a Hessian Factor
   GaussianFactor::shared_ptr antiGaussian = antiFactor->linearize(values);
-  HessianFactor::shared_ptr antiHessian = boost::dynamic_pointer_cast<HessianFactor>(antiGaussian);
+  HessianFactor::shared_ptr antiHessian = std::dynamic_pointer_cast<HessianFactor>(antiGaussian);
 
   Matrix expected_information = -originalHessian->information();
   Matrix actual_information = antiHessian->information();
@@ -90,7 +89,7 @@ TEST( AntiFactor, EquivalentBayesNet)
   SharedNoiseModel sigma(noiseModel::Unit::Create(6));
 
   NonlinearFactorGraph graph;
-  graph.emplace_shared<PriorFactor<Pose3> >(1, pose1, sigma);
+  graph.addPrior(1, pose1, sigma);
   graph.emplace_shared<BetweenFactor<Pose3> >(1, 2, pose1.between(pose2), sigma);
 
   // Create a configuration corresponding to the ground truth

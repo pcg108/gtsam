@@ -18,7 +18,6 @@
 #pragma once
 
 #include <gtsam/global_includes.h>
-#include <boost/lexical_cast.hpp>
 #include <exception>
 
 namespace gtsam {
@@ -28,9 +27,9 @@ namespace gtsam {
    *  with an ordering that does not include all of the variables. */
   class InconsistentEliminationRequested : public std::exception {
   public:
-    InconsistentEliminationRequested() throw() {}
-    virtual ~InconsistentEliminationRequested() throw() {}
-    virtual const char* what() const throw() {
+    InconsistentEliminationRequested() noexcept {}
+    ~InconsistentEliminationRequested() noexcept override {}
+    const char* what() const noexcept override {
       return
         "An inference algorithm was called with inconsistent arguments.  The\n"
         "factor graph, ordering, or variable index were inconsistent with each\n"

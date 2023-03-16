@@ -19,13 +19,11 @@
 #include <vector>
 #include <limits>
 
-#include <boost/format.hpp>
-
 #include <gtsam/inference/Ordering.h>
 #include <gtsam/3rdparty/CCOLAMD/Include/ccolamd.h>
 
 #ifdef GTSAM_SUPPORT_NESTED_DISSECTION
-#include <gtsam/3rdparty/metis/include/metis.h>
+#include <metis.h>
 #endif
 
 using namespace std;
@@ -91,7 +89,7 @@ Ordering Ordering::ColamdConstrained(const VariableIndex& variableIndex,
 
   assert((size_t)count == variableIndex.nEntries());
 
-  //double* knobs = NULL; /* colamd arg 6: parameters (uses defaults if NULL) */
+  //double* knobs = nullptr; /* colamd arg 6: parameters (uses defaults if nullptr) */
   double knobs[CCOLAMD_KNOBS];
   ccolamd_set_defaults(knobs);
   knobs[CCOLAMD_DENSE_ROW] = -1;
@@ -107,9 +105,9 @@ Ordering Ordering::ColamdConstrained(const VariableIndex& variableIndex,
     gttic(ccolamd);
     int rv = ccolamd((int) nFactors, (int) nVars, (int) Alen, &A[0], &p[0],
         knobs, stats, &cmember[0]);
-    if (rv != 1)
-      throw runtime_error(
-          (boost::format("ccolamd failed with return value %1%") % rv).str());
+    if (rv != 1) {
+      throw runtime_error("ccolamd failed with return value " + to_string(rv));
+    }
   }
 
   //  ccolamd_report(stats);
@@ -235,7 +233,7 @@ Ordering Ordering::Metis(const MetisIndex& met) {
 
   int outputError;
 
-  outputError = METIS_NodeND(&size, &xadj[0], &adj[0], NULL, NULL, &perm[0],
+  outputError = METIS_NodeND(&size, &xadj[0], &adj[0], nullptr, nullptr, &perm[0],
       &iperm[0]);
   Ordering result;
 
@@ -281,6 +279,17 @@ void Ordering::print(const std::string& str,
   if (!endedOnNewline)
     cout << "\n";
   cout.flush();
+}
+
+/* ************************************************************************* */
+Ordering::This& Ordering::operator+=(KeyVector& keys) {
+  this->insert(this->end(), keys.begin(), keys.end());
+  return *this;
+}
+
+/* ************************************************************************* */
+bool Ordering::contains(const Key& key) const {
+  return std::find(this->begin(), this->end(), key) != this->end();
 }
 
 /* ************************************************************************* */

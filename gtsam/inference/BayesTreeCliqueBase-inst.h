@@ -17,6 +17,7 @@
 #pragma once
 
 #include <gtsam/inference/BayesTreeCliqueBase.h>
+#include <gtsam/inference/FactorGraph-inst.h>
 #include <gtsam/base/timing.h>
 
 namespace gtsam {
@@ -91,6 +92,7 @@ namespace gtsam {
   template<class DERIVED, class FACTORGRAPH>
   size_t BayesTreeCliqueBase<DERIVED, FACTORGRAPH>::numCachedSeparatorMarginals() const
   {
+    std::lock_guard<std::mutex> marginalLock(cachedSeparatorMarginalMutex_);
     if (!cachedSeparatorMarginal_)
       return 0;
 
@@ -121,13 +123,13 @@ namespace gtsam {
       gttoc(BayesTreeCliqueBase_shortcut);
       FactorGraphType p_Cp_B(parent->shortcut(B, function)); // P(Sp||B)
       gttic(BayesTreeCliqueBase_shortcut);
-      p_Cp_B += parent->conditional_; // P(Fp|Sp)
+      p_Cp_B.push_back(parent->conditional_); // P(Fp|Sp)
 
       // Determine the variables we want to keepSet, S union B
       KeyVector keep = shortcut_indices(B, p_Cp_B);
 
       // Marginalize out everything except S union B
-      boost::shared_ptr<FactorGraphType> p_S_B = p_Cp_B.marginal(keep, function);
+      std::shared_ptr<FactorGraphType> p_S_B = p_Cp_B.marginal(keep, function);
       return *p_S_B->eliminatePartialSequential(S_setminus_B, function).first;
     }
     else
@@ -136,62 +138,67 @@ namespace gtsam {
     }
   }
 
-  /* ************************************************************************* */
+  /* *********************************************************************** */
   // separator marginal, uses separator marginal of parent recursively
   // P(C) = P(F|S) P(S)
-  /* ************************************************************************* */
-  template<class DERIVED, class FACTORGRAPH>
+  /* *********************************************************************** */
+  template <class DERIVED, class FACTORGRAPH>
   typename BayesTreeCliqueBase<DERIVED, FACTORGRAPH>::FactorGraphType
-    BayesTreeCliqueBase<DERIVED, FACTORGRAPH>::separatorMarginal(Eliminate function) const
-  {
+  BayesTreeCliqueBase<DERIVED, FACTORGRAPH>::separatorMarginal(
+      Eliminate function) const {
+    std::lock_guard<std::mutex> marginalLock(cachedSeparatorMarginalMutex_);
     gttic(BayesTreeCliqueBase_separatorMarginal);
     // Check if the Separator marginal was already calculated
-    if (!cachedSeparatorMarginal_)
-    {
+    if (!cachedSeparatorMarginal_) {
       gttic(BayesTreeCliqueBase_separatorMarginal_cachemiss);
+
       // If this is the root, there is no separator
-      if (parent_.expired() /*(if we're the root)*/)
-      {
+      if (parent_.expired() /*(if we're the root)*/) {
         // we are root, return empty
         FactorGraphType empty;
         cachedSeparatorMarginal_ = empty;
-      }
-      else
-      {
+      } else {
+        // Flatten recursion in timing outline
+        gttoc(BayesTreeCliqueBase_separatorMarginal_cachemiss);
+        gttoc(BayesTreeCliqueBase_separatorMarginal);
+
         // Obtain P(S) = \int P(Cp) = \int P(Fp|Sp) P(Sp)
         // initialize P(Cp) with the parent separator marginal
         derived_ptr parent(parent_.lock());
-        gttoc(BayesTreeCliqueBase_separatorMarginal_cachemiss); // Flatten recursion in timing outline
-        gttoc(BayesTreeCliqueBase_separatorMarginal);
-        FactorGraphType p_Cp(parent->separatorMarginal(function)); // P(Sp)
+        FactorGraphType p_Cp(parent->separatorMarginal(function));  // P(Sp)
+
         gttic(BayesTreeCliqueBase_separatorMarginal);
         gttic(BayesTreeCliqueBase_separatorMarginal_cachemiss);
+
         // now add the parent conditional
-        p_Cp += parent->conditional_; // P(Fp|Sp)
+        p_Cp.push_back(parent->conditional_);  // P(Fp|Sp)
 
         // The variables we want to keepSet are exactly the ones in S
-        KeyVector indicesS(this->conditional()->beginParents(), this->conditional()->endParents());
-        cachedSeparatorMarginal_ = *p_Cp.marginalMultifrontalBayesNet(Ordering(indicesS), function);
+        KeyVector indicesS(this->conditional()->beginParents(),
+                           this->conditional()->endParents());
+        auto separatorMarginal =
+            p_Cp.marginalMultifrontalBayesNet(Ordering(indicesS), function);
+        cachedSeparatorMarginal_ = *separatorMarginal;
       }
     }
 
     // return the shortcut P(S||B)
-    return *cachedSeparatorMarginal_; // return the cached version
+    return *cachedSeparatorMarginal_;  // return the cached version
   }
 
-  /* ************************************************************************* */
-  // marginal2, uses separator marginal of parent recursively
+  /* *********************************************************************** */
+  // marginal2, uses separator marginal of parent
   // P(C) = P(F|S) P(S)
-  /* ************************************************************************* */
-  template<class DERIVED, class FACTORGRAPH>
+  /* *********************************************************************** */
+  template <class DERIVED, class FACTORGRAPH>
   typename BayesTreeCliqueBase<DERIVED, FACTORGRAPH>::FactorGraphType
-    BayesTreeCliqueBase<DERIVED, FACTORGRAPH>::marginal2(Eliminate function) const
-  {
+  BayesTreeCliqueBase<DERIVED, FACTORGRAPH>::marginal2(
+      Eliminate function) const {
     gttic(BayesTreeCliqueBase_marginal2);
     // initialize with separator marginal P(S)
     FactorGraphType p_C = this->separatorMarginal(function);
     // add the conditional P(F|S)
-    p_C += boost::shared_ptr<FactorType>(this->conditional_);
+    p_C.push_back(std::shared_ptr<FactorType>(this->conditional_));
     return p_C;
   }
 
@@ -202,13 +209,15 @@ namespace gtsam {
     // When a shortcut is requested, all of the shortcuts between it and the
     // root are also generated. So, if this clique's cached shortcut is set,
     // recursively call over all child cliques. Otherwise, it is unnecessary.
+    
+    std::lock_guard<std::mutex> marginalLock(cachedSeparatorMarginalMutex_);
     if (cachedSeparatorMarginal_) {
       for(derived_ptr& child: children) {
         child->deleteCachedShortcuts();
       }
 
       //Delete CachedShortcut for this clique
-      cachedSeparatorMarginal_ = boost::none;
+      cachedSeparatorMarginal_ = {};
     }
 
   }

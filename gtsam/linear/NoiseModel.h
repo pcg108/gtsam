@@ -20,14 +20,18 @@
 
 #include <gtsam/base/Testable.h>
 #include <gtsam/base/Matrix.h>
+#include <gtsam/base/std_optional_serialization.h>
 #include <gtsam/dllexport.h>
 #include <gtsam/linear/LossFunctions.h>
 
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
 #include <boost/serialization/nvp.hpp>
 #include <boost/serialization/extended_type_info.hpp>
 #include <boost/serialization/singleton.hpp>
 #include <boost/serialization/shared_ptr.hpp>
-#include <boost/serialization/optional.hpp>
+#endif
+
+#include <optional>
 
 namespace gtsam {
 
@@ -53,7 +57,7 @@ namespace gtsam {
     class GTSAM_EXPORT Base {
 
     public:
-      typedef boost::shared_ptr<Base> shared_ptr;
+      typedef std::shared_ptr<Base> shared_ptr;
 
     protected:
 
@@ -90,7 +94,18 @@ namespace gtsam {
       /// Unwhiten an error vector.
       virtual Vector unwhiten(const Vector& v) const = 0;
 
-      virtual double distance(const Vector& v) const = 0;
+      /// Squared Mahalanobis distance v'*R'*R*v = <R*v,R*v>
+      virtual double squaredMahalanobisDistance(const Vector& v) const;
+
+      /// Mahalanobis distance
+      virtual double mahalanobisDistance(const Vector& v) const {
+        return std::sqrt(squaredMahalanobisDistance(v));
+      }
+
+      /// loss function, input is Mahalanobis distance
+      virtual double loss(const double squared_distance) const {
+        return 0.5 * squared_distance;
+      }
 
       virtual void WhitenSystem(std::vector<Matrix>& A, Vector& b) const = 0;
       virtual void WhitenSystem(Matrix& A, Vector& b) const = 0;
@@ -126,12 +141,14 @@ namespace gtsam {
       virtual double weight(const Vector& v) const { return 1.0; }
 
     private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
       /** Serialization function */
       friend class boost::serialization::access;
       template<class ARCHIVE>
       void serialize(ARCHIVE & ar, const unsigned int /*version*/) {
         ar & BOOST_SERIALIZATION_NVP(dim_);
       }
+#endif
     };
 
     //---------------------------------------------------------------------------------------
@@ -153,7 +170,7 @@ namespace gtsam {
     protected:
 
       /** Matrix square root of information matrix (R) */
-      boost::optional<Matrix> sqrt_information_;
+      std::optional<Matrix> sqrt_information_;
 
     private:
 
@@ -166,18 +183,17 @@ namespace gtsam {
         return *sqrt_information_;
       }
 
-    protected:
-
-      /** protected constructor takes square root information matrix */
-      Gaussian(size_t dim = 1, const boost::optional<Matrix>& sqrt_information = boost::none) :
-        Base(dim), sqrt_information_(sqrt_information) {
-      }
 
     public:
 
-      typedef boost::shared_ptr<Gaussian> shared_ptr;
+      typedef std::shared_ptr<Gaussian> shared_ptr;
 
-      virtual ~Gaussian() {}
+      /** constructor takes square root information matrix */
+      Gaussian(size_t dim = 1,
+               const std::optional<Matrix>& sqrt_information = {})
+          : Base(dim), sqrt_information_(sqrt_information) {}
+
+      ~Gaussian() override {}
 
       /**
        * A Gaussian noise model created by specifying a square root information matrix.
@@ -200,26 +216,17 @@ namespace gtsam {
        */
       static shared_ptr Covariance(const Matrix& covariance, bool smart = true);
 
-      virtual void print(const std::string& name) const;
-      virtual bool equals(const Base& expected, double tol=1e-9) const;
-      virtual Vector sigmas() const;
-      virtual Vector whiten(const Vector& v) const;
-      virtual Vector unwhiten(const Vector& v) const;
-
-      /**
-       * Mahalanobis distance v'*R'*R*v = <R*v,R*v>
-       */
-      virtual double Mahalanobis(const Vector& v) const;
-
-      inline virtual double distance(const Vector& v) const {
-        return Mahalanobis(v);
-      }
+      void print(const std::string& name) const override;
+      bool equals(const Base& expected, double tol=1e-9) const override;
+      Vector sigmas() const override;
+      Vector whiten(const Vector& v) const override;
+      Vector unwhiten(const Vector& v) const override;
 
       /**
        * Multiply a derivative with R (derivative of whiten)
        * Equivalent to whitening each column of the input matrix.
        */
-      virtual Matrix Whiten(const Matrix& H) const;
+      Matrix Whiten(const Matrix& H) const override;
 
       /**
        * In-place version
@@ -234,10 +241,10 @@ namespace gtsam {
       /**
        * Whiten a system, in place as well
        */
-      virtual void WhitenSystem(std::vector<Matrix>& A, Vector& b) const;
-      virtual void WhitenSystem(Matrix& A, Vector& b) const;
-      virtual void WhitenSystem(Matrix& A1, Matrix& A2, Vector& b) const;
-      virtual void WhitenSystem(Matrix& A1, Matrix& A2, Matrix& A3, Vector& b) const;
+      void WhitenSystem(std::vector<Matrix>& A, Vector& b) const override;
+      void WhitenSystem(Matrix& A, Vector& b) const override;
+      void WhitenSystem(Matrix& A1, Matrix& A2, Vector& b) const override;
+      void WhitenSystem(Matrix& A1, Matrix& A2, Matrix& A3, Vector& b) const override;
 
       /**
        * Apply appropriately weighted QR factorization to the system [A b]
@@ -248,18 +255,19 @@ namespace gtsam {
        * @param Ab is the m*(n+1) augmented system matrix [A b]
        * @return Empty SharedDiagonal() noise model: R,d are whitened
        */
-      virtual boost::shared_ptr<Diagonal> QR(Matrix& Ab) const;
+      virtual std::shared_ptr<Diagonal> QR(Matrix& Ab) const;
 
       /// Return R itself, but note that Whiten(H) is cheaper than R*H
       virtual Matrix R() const { return thisR();}
 
       /// Compute information matrix
-      virtual Matrix information() const { return R().transpose() * R(); }
+      virtual Matrix information() const;
 
       /// Compute covariance matrix
-      virtual Matrix covariance() const { return information().inverse(); }
+      virtual Matrix covariance() const;
 
     private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
       /** Serialization function */
       friend class boost::serialization::access;
       template<class ARCHIVE>
@@ -267,7 +275,7 @@ namespace gtsam {
         ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Base);
         ar & BOOST_SERIALIZATION_NVP(sqrt_information_);
       }
-
+#endif
     }; // Gaussian
 
     //---------------------------------------------------------------------------------------
@@ -288,17 +296,17 @@ namespace gtsam {
       Vector sigmas_, invsigmas_, precisions_;
 
     protected:
-      /** protected constructor - no initializations */
-      Diagonal();
 
       /** constructor to allow for disabling initialization of invsigmas */
       Diagonal(const Vector& sigmas);
 
     public:
+      /** constructor - no initializations, for serialization */
+      Diagonal();
 
-      typedef boost::shared_ptr<Diagonal> shared_ptr;
+      typedef std::shared_ptr<Diagonal> shared_ptr;
 
-      virtual ~Diagonal() {}
+      ~Diagonal() override {}
 
       /**
        * A diagonal noise model created by specifying a Vector of sigmas, i.e.
@@ -318,17 +326,15 @@ namespace gtsam {
        * A diagonal noise model created by specifying a Vector of precisions, i.e.
        * i.e. the diagonal of the information matrix, i.e., weights
        */
-      static shared_ptr Precisions(const Vector& precisions, bool smart = true) {
-        return Variances(precisions.array().inverse(), smart);
-      }
+      static shared_ptr Precisions(const Vector& precisions, bool smart = true);
 
-      virtual void print(const std::string& name) const;
-      virtual Vector sigmas() const { return sigmas_; }
-      virtual Vector whiten(const Vector& v) const;
-      virtual Vector unwhiten(const Vector& v) const;
-      virtual Matrix Whiten(const Matrix& H) const;
-      virtual void WhitenInPlace(Matrix& H) const;
-      virtual void WhitenInPlace(Eigen::Block<Matrix> H) const;
+      void print(const std::string& name) const override;
+      Vector sigmas() const override { return sigmas_; }
+      Vector whiten(const Vector& v) const override;
+      Vector unwhiten(const Vector& v) const override;
+      Matrix Whiten(const Matrix& H) const override;
+      void WhitenInPlace(Matrix& H) const override;
+      void WhitenInPlace(Eigen::Block<Matrix> H) const override;
 
       /**
        * Return standard deviations (sqrt of diagonal)
@@ -350,11 +356,12 @@ namespace gtsam {
       /**
        * Return R itself, but note that Whiten(H) is cheaper than R*H
        */
-      virtual Matrix R() const {
+      Matrix R() const override {
         return invsigmas().asDiagonal();
       }
 
     private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
       /** Serialization function */
       friend class boost::serialization::access;
       template<class ARCHIVE>
@@ -363,6 +370,7 @@ namespace gtsam {
         ar & BOOST_SERIALIZATION_NVP(sigmas_);
         ar & BOOST_SERIALIZATION_NVP(invsigmas_);
       }
+#endif
     }; // Diagonal
 
     //---------------------------------------------------------------------------------------
@@ -386,14 +394,6 @@ namespace gtsam {
       Vector mu_; ///< Penalty function weight - needs to be large enough to dominate soft constraints
 
       /**
-       * protected constructor takes sigmas.
-       * prevents any inf values
-       * from appearing in invsigmas or precisions.
-       * mu set to large default value (1000.0)
-       */
-      Constrained(const Vector& sigmas = Z_1x1);
-
-      /**
        * Constructor that prevents any inf values
        * from appearing in invsigmas or precisions.
        * Allows for specifying mu.
@@ -402,12 +402,20 @@ namespace gtsam {
 
     public:
 
-      typedef boost::shared_ptr<Constrained> shared_ptr;
+      typedef std::shared_ptr<Constrained> shared_ptr;
 
-      virtual ~Constrained() {}
+      /**
+       * protected constructor takes sigmas.
+       * prevents any inf values
+       * from appearing in invsigmas or precisions.
+       * mu set to large default value (1000.0)
+       */
+      Constrained(const Vector& sigmas = Z_1x1);
+
+      ~Constrained() override {}
 
       /// true if a constrained noise mode, saves slow/clumsy dynamic casting
-      virtual bool isConstrained() const { return true; }
+      bool isConstrained() const override { return true; }
 
       /// Return true if a particular dimension is free or constrained
       bool constrained(size_t i) const;
@@ -425,46 +433,34 @@ namespace gtsam {
        * A diagonal noise model created by specifying a Vector of
        * standard devations, some of which might be zero
        */
-      static shared_ptr MixedSigmas(const Vector& sigmas) {
-        return MixedSigmas(Vector::Constant(sigmas.size(), 1000.0), sigmas);
-      }
+      static shared_ptr MixedSigmas(const Vector& sigmas);
 
       /**
        * A diagonal noise model created by specifying a Vector of
        * standard devations, some of which might be zero
        */
-      static shared_ptr MixedSigmas(double m, const Vector& sigmas) {
-        return MixedSigmas(Vector::Constant(sigmas.size(), m), sigmas);
-      }
+      static shared_ptr MixedSigmas(double m, const Vector& sigmas);
 
       /**
        * A diagonal noise model created by specifying a Vector of
        * standard devations, some of which might be zero
        */
-      static shared_ptr MixedVariances(const Vector& mu, const Vector& variances) {
-        return shared_ptr(new Constrained(mu, variances.cwiseSqrt()));
-      }
-      static shared_ptr MixedVariances(const Vector& variances) {
-        return shared_ptr(new Constrained(variances.cwiseSqrt()));
-      }
+      static shared_ptr MixedVariances(const Vector& mu, const Vector& variances);
+      static shared_ptr MixedVariances(const Vector& variances);
 
       /**
        * A diagonal noise model created by specifying a Vector of
        * precisions, some of which might be inf
        */
-      static shared_ptr MixedPrecisions(const Vector& mu, const Vector& precisions) {
-        return MixedVariances(mu, precisions.array().inverse());
-      }
-      static shared_ptr MixedPrecisions(const Vector& precisions) {
-        return MixedVariances(precisions.array().inverse());
-      }
+      static shared_ptr MixedPrecisions(const Vector& mu, const Vector& precisions);
+      static shared_ptr MixedPrecisions(const Vector& precisions);
 
       /**
-       * The distance function for a constrained noisemodel,
+       * The squaredMahalanobisDistance function for a constrained noisemodel,
        * for non-constrained versions, uses sigmas, otherwise
        * uses the penalty function with mu
        */
-      virtual double distance(const Vector& v) const;
+      double squaredMahalanobisDistance(const Vector& v) const override;
 
       /** Fully constrained variations */
       static shared_ptr All(size_t dim) {
@@ -481,16 +477,16 @@ namespace gtsam {
         return shared_ptr(new Constrained(Vector::Constant(dim, mu), Vector::Constant(dim,0)));
       }
 
-      virtual void print(const std::string& name) const;
+      void print(const std::string& name) const override;
 
       /// Calculates error vector with weights applied
-      virtual Vector whiten(const Vector& v) const;
+      Vector whiten(const Vector& v) const override;
 
       /// Whitening functions will perform partial whitening on rows
       /// with a non-zero sigma.  Other rows remain untouched.
-      virtual Matrix Whiten(const Matrix& H) const;
-      virtual void WhitenInPlace(Matrix& H) const;
-      virtual void WhitenInPlace(Eigen::Block<Matrix> H) const;
+      Matrix Whiten(const Matrix& H) const override;
+      void WhitenInPlace(Matrix& H) const override;
+      void WhitenInPlace(Eigen::Block<Matrix> H) const override;
 
       /**
        * Apply QR factorization to the system [A b], taking into account constraints
@@ -501,7 +497,7 @@ namespace gtsam {
        * @param Ab is the m*(n+1) augmented system matrix [A b]
        * @return diagonal noise model can be all zeros, mixed, or not-constrained
        */
-      virtual Diagonal::shared_ptr QR(Matrix& Ab) const;
+      Diagonal::shared_ptr QR(Matrix& Ab) const override;
 
       /**
        * Returns a Unit version of a constrained noisemodel in which
@@ -510,6 +506,7 @@ namespace gtsam {
       shared_ptr unit() const;
 
     private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
       /** Serialization function */
       friend class boost::serialization::access;
       template<class ARCHIVE>
@@ -517,6 +514,7 @@ namespace gtsam {
         ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Diagonal);
         ar & BOOST_SERIALIZATION_NVP(mu_);
       }
+#endif
 
     }; // Constrained
 
@@ -534,14 +532,14 @@ namespace gtsam {
       Isotropic(size_t dim, double sigma) :
         Diagonal(Vector::Constant(dim, sigma)),sigma_(sigma),invsigma_(1.0/sigma) {}
 
+    public:
+
       /* dummy constructor to allow for serialization */
       Isotropic() : Diagonal(Vector1::Constant(1.0)),sigma_(1.0),invsigma_(1.0) {}
 
-    public:
+      ~Isotropic() override {}
 
-      virtual ~Isotropic() {}
-
-      typedef boost::shared_ptr<Isotropic> shared_ptr;
+      typedef std::shared_ptr<Isotropic> shared_ptr;
 
       /**
        * An isotropic noise model created by specifying a standard devation sigma
@@ -563,14 +561,14 @@ namespace gtsam {
         return Variance(dim, 1.0/precision, smart);
       }
 
-      virtual void print(const std::string& name) const;
-      virtual double Mahalanobis(const Vector& v) const;
-      virtual Vector whiten(const Vector& v) const;
-      virtual Vector unwhiten(const Vector& v) const;
-      virtual Matrix Whiten(const Matrix& H) const;
-      virtual void WhitenInPlace(Matrix& H) const;
-      virtual void whitenInPlace(Vector& v) const;
-      virtual void WhitenInPlace(Eigen::Block<Matrix> H) const;
+      void print(const std::string& name) const override;
+      double squaredMahalanobisDistance(const Vector& v) const override;
+      Vector whiten(const Vector& v) const override;
+      Vector unwhiten(const Vector& v) const override;
+      Matrix Whiten(const Matrix& H) const override;
+      void WhitenInPlace(Matrix& H) const override;
+      void whitenInPlace(Vector& v) const override;
+      void WhitenInPlace(Eigen::Block<Matrix> H) const override;
 
       /**
        * Return standard deviation
@@ -578,6 +576,7 @@ namespace gtsam {
       inline double sigma() const { return sigma_; }
 
     private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
       /** Serialization function */
       friend class boost::serialization::access;
       template<class ARCHIVE>
@@ -586,6 +585,7 @@ namespace gtsam {
         ar & BOOST_SERIALIZATION_NVP(sigma_);
         ar & BOOST_SERIALIZATION_NVP(invsigma_);
       }
+#endif
 
     };
 
@@ -595,15 +595,14 @@ namespace gtsam {
      * Unit: i.i.d. unit-variance noise on all m dimensions.
      */
     class GTSAM_EXPORT Unit : public Isotropic {
-    protected:
-
-      Unit(size_t dim=1): Isotropic(dim,1.0) {}
-
     public:
 
-      typedef boost::shared_ptr<Unit> shared_ptr;
+      typedef std::shared_ptr<Unit> shared_ptr;
 
-      virtual ~Unit() {}
+      /** constructor for serialization */
+      Unit(size_t dim=1): Isotropic(dim,1.0) {}
+
+      ~Unit() override {}
 
       /**
        * Create a unit covariance noise model
@@ -613,27 +612,29 @@ namespace gtsam {
       }
 
       /// true if a unit noise model, saves slow/clumsy dynamic casting
-      virtual bool isUnit() const { return true; }
+      bool isUnit() const override { return true; }
 
-      virtual void print(const std::string& name) const;
-      virtual double Mahalanobis(const Vector& v) const {return v.dot(v); }
-      virtual Vector whiten(const Vector& v) const { return v; }
-      virtual Vector unwhiten(const Vector& v) const { return v; }
-      virtual Matrix Whiten(const Matrix& H) const { return H; }
-      virtual void WhitenInPlace(Matrix& /*H*/) const {}
-      virtual void WhitenInPlace(Eigen::Block<Matrix> /*H*/) const {}
-      virtual void whitenInPlace(Vector& /*v*/) const {}
-      virtual void unwhitenInPlace(Vector& /*v*/) const {}
-      virtual void whitenInPlace(Eigen::Block<Vector>& /*v*/) const {}
-      virtual void unwhitenInPlace(Eigen::Block<Vector>& /*v*/) const {}
+      void print(const std::string& name) const override;
+      double squaredMahalanobisDistance(const Vector& v) const override;
+      Vector whiten(const Vector& v) const override { return v; }
+      Vector unwhiten(const Vector& v) const override { return v; }
+      Matrix Whiten(const Matrix& H) const override { return H; }
+      void WhitenInPlace(Matrix& /*H*/) const override {}
+      void WhitenInPlace(Eigen::Block<Matrix> /*H*/) const override {}
+      void whitenInPlace(Vector& /*v*/) const override {}
+      void unwhitenInPlace(Vector& /*v*/) const override {}
+      void whitenInPlace(Eigen::Block<Vector>& /*v*/) const override {}
+      void unwhitenInPlace(Eigen::Block<Vector>& /*v*/) const override {}
 
     private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
       /** Serialization function */
       friend class boost::serialization::access;
       template<class ARCHIVE>
       void serialize(ARCHIVE & ar, const unsigned int /*version*/) {
         ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Isotropic);
       }
+#endif
     };
 
     /**
@@ -655,7 +656,7 @@ namespace gtsam {
      */
     class GTSAM_EXPORT Robust : public Base {
     public:
-      typedef boost::shared_ptr<Robust> shared_ptr;
+      typedef std::shared_ptr<Robust> shared_ptr;
 
     protected:
       typedef mEstimator::Base RobustModel;
@@ -667,17 +668,17 @@ namespace gtsam {
     public:
 
       /// Default Constructor for serialization
-      Robust() {};
+      Robust() {}
 
       /// Constructor
       Robust(const RobustModel::shared_ptr robust, const NoiseModel::shared_ptr noise)
       : Base(noise->dim()), robust_(robust), noise_(noise) {}
 
       /// Destructor
-      virtual ~Robust() {}
+      ~Robust() override {}
 
-      virtual void print(const std::string& name) const;
-      virtual bool equals(const Base& expected, double tol=1e-9) const;
+      void print(const std::string& name) const override;
+      bool equals(const Base& expected, double tol=1e-9) const override;
 
       /// Return the contained robust error function
       const RobustModel::shared_ptr& robust() const { return robust_; }
@@ -685,37 +686,39 @@ namespace gtsam {
       /// Return the contained noise model
       const NoiseModel::shared_ptr& noise() const { return noise_; }
 
-      // TODO: functions below are dummy but necessary for the noiseModel::Base
-      inline virtual Vector whiten(const Vector& v) const
+      // Functions below are dummy but necessary for the noiseModel::Base
+      inline Vector whiten(const Vector& v) const override
       { Vector r = v; this->WhitenSystem(r); return r; }
-      inline virtual Matrix Whiten(const Matrix& A) const
+      inline Matrix Whiten(const Matrix& A) const override
       { Vector b; Matrix B=A; this->WhitenSystem(B,b); return B; }
-      inline virtual Vector unwhiten(const Vector& /*v*/) const
+      inline Vector unwhiten(const Vector& /*v*/) const override
       { throw std::invalid_argument("unwhiten is not currently supported for robust noise models."); }
-      // Fold the use of the m-estimator residual(...) function into distance(...)
-      inline virtual double distance(const Vector& v) const
-      { return robust_->residual(this->unweightedWhiten(v).norm()); }
-      inline virtual double distance_non_whitened(const Vector& v) const
-      { return robust_->residual(v.norm()); }
-      // TODO: these are really robust iterated re-weighting support functions
-      virtual void WhitenSystem(Vector& b) const;
-      virtual void WhitenSystem(std::vector<Matrix>& A, Vector& b) const;
-      virtual void WhitenSystem(Matrix& A, Vector& b) const;
-      virtual void WhitenSystem(Matrix& A1, Matrix& A2, Vector& b) const;
-      virtual void WhitenSystem(Matrix& A1, Matrix& A2, Matrix& A3, Vector& b) const;
+      /// Compute loss from the m-estimator using the Mahalanobis distance.
+      double loss(const double squared_distance) const override {
+        return robust_->loss(std::sqrt(squared_distance));
+      }
 
-      virtual Vector unweightedWhiten(const Vector& v) const {
-        return noise_->unweightedWhiten(v);
+      // NOTE: This is special because in whiten the base version will do the reweighting
+      // which is incorrect!
+      double squaredMahalanobisDistance(const Vector& v) const override {
+        return noise_->squaredMahalanobisDistance(v);
       }
-      virtual double weight(const Vector& v) const {
-        // Todo(mikebosse): make the robust weight function input a vector.
-        return robust_->weight(v.norm());
-      }
+
+      // These are really robust iterated re-weighting support functions
+      virtual void WhitenSystem(Vector& b) const;
+      void WhitenSystem(std::vector<Matrix>& A, Vector& b) const override;
+      void WhitenSystem(Matrix& A, Vector& b) const override;
+      void WhitenSystem(Matrix& A1, Matrix& A2, Vector& b) const override;
+      void WhitenSystem(Matrix& A1, Matrix& A2, Matrix& A3, Vector& b) const override;
+
+      Vector unweightedWhiten(const Vector& v) const override;
+      double weight(const Vector& v) const override;
 
       static shared_ptr Create(
         const RobustModel::shared_ptr &robust, const NoiseModel::shared_ptr noise);
 
     private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
       /** Serialization function */
       friend class boost::serialization::access;
       template<class ARCHIVE>
@@ -724,15 +727,16 @@ namespace gtsam {
         ar & boost::serialization::make_nvp("robust_", const_cast<RobustModel::shared_ptr&>(robust_));
         ar & boost::serialization::make_nvp("noise_", const_cast<NoiseModel::shared_ptr&>(noise_));
       }
+#endif
     };
 
     // Helper function
-    GTSAM_EXPORT boost::optional<Vector> checkIfDiagonal(const Matrix M);
+    GTSAM_EXPORT std::optional<Vector> checkIfDiagonal(const Matrix& M);
 
   } // namespace noiseModel
 
-  /** Note, deliberately not in noiseModel namespace.
-   * Deprecated. Only for compatibility with previous version.
+  /** 
+   * Aliases. Deliberately not in noiseModel namespace.
    */
   typedef noiseModel::Base::shared_ptr SharedNoiseModel;
   typedef noiseModel::Gaussian::shared_ptr SharedGaussian;

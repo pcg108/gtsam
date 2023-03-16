@@ -36,19 +36,24 @@ struct PreconditionerParameters;
 struct GTSAM_EXPORT PCGSolverParameters: public ConjugateGradientParameters {
 public:
   typedef ConjugateGradientParameters Base;
-  typedef boost::shared_ptr<PCGSolverParameters> shared_ptr;
+  typedef std::shared_ptr<PCGSolverParameters> shared_ptr;
 
   PCGSolverParameters() {
   }
 
-  virtual void print(std::ostream &os) const;
+  void print(std::ostream &os) const override;
 
   /* interface to preconditioner parameters */
   inline const PreconditionerParameters& preconditioner() const {
     return *preconditioner_;
   }
 
-  boost::shared_ptr<PreconditionerParameters> preconditioner_;
+  // needed for python wrapper
+  void print(const std::string &s) const;
+
+  std::shared_ptr<PreconditionerParameters> preconditioner_;
+
+  void setPreconditionerParams(const std::shared_ptr<PreconditionerParameters> preconditioner);
 };
 
 /**
@@ -57,24 +62,24 @@ public:
 class GTSAM_EXPORT PCGSolver: public IterativeSolver {
 public:
   typedef IterativeSolver Base;
-  typedef boost::shared_ptr<PCGSolver> shared_ptr;
+  typedef std::shared_ptr<PCGSolver> shared_ptr;
 
 protected:
 
   PCGSolverParameters parameters_;
-  boost::shared_ptr<Preconditioner> preconditioner_;
+  std::shared_ptr<Preconditioner> preconditioner_;
 
 public:
   /* Interface to initialize a solver without a problem */
   PCGSolver(const PCGSolverParameters &p);
-  virtual ~PCGSolver() {
+  ~PCGSolver() override {
   }
 
   using IterativeSolver::optimize;
 
-  virtual VectorValues optimize(const GaussianFactorGraph &gfg,
+  VectorValues optimize(const GaussianFactorGraph &gfg,
       const KeyInfo &keyInfo, const std::map<Key, Vector> &lambda,
-      const VectorValues &initial);
+      const VectorValues &initial) override;
 
 };
 
@@ -97,15 +102,9 @@ public:
   void multiply(const Vector &x, Vector& y) const;
   void leftPrecondition(const Vector &x, Vector &y) const;
   void rightPrecondition(const Vector &x, Vector &y) const;
-  inline void scal(const double alpha, Vector &x) const {
-    x *= alpha;
-  }
-  inline double dot(const Vector &x, const Vector &y) const {
-    return x.dot(y);
-  }
-  inline void axpy(const double alpha, const Vector &x, Vector &y) const {
-    y += alpha * x;
-  }
+  void scal(const double alpha, Vector &x) const;
+  double dot(const Vector &x, const Vector &y) const;
+  void axpy(const double alpha, const Vector &x, Vector &y) const;
 
   void getb(Vector &b) const;
 };

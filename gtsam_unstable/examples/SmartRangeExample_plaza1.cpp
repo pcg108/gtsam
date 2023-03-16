@@ -37,7 +37,6 @@
 
 // In GTSAM, measurement functions are represented as 'factors'. Several common factors
 // have been provided with the library for solving robotics SLAM problems.
-#include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/sam/RangeFactor.h>
 #include <gtsam_unstable/slam/SmartRangeFactor.h>
@@ -78,7 +77,7 @@ list<TimedOdometry> readOdometry() {
 
 // load the ranges from TD
 //    Time (sec)  Sender / Antenna ID Receiver Node ID  Range (m)
-typedef boost::tuple<double, size_t, double> RangeTriple;
+typedef std::tuple<double, size_t, double> RangeTriple;
 vector<RangeTriple> readTriples() {
   vector<RangeTriple> triples;
   string tdFile = findExampleDataFile("Plaza1_TD.txt");
@@ -127,7 +126,7 @@ int main(int argc, char** argv) {
   Pose2 pose0 = Pose2(-34.2086489999201, 45.3007639991120,
       M_PI - 2.02108900000000);
   NonlinearFactorGraph newFactors;
-  newFactors.push_back(PriorFactor<Pose2>(0, pose0, priorNoise));
+  newFactors.addPrior(0, pose0, priorNoise);
 
   ofstream os2("rangeResultLM.txt");
   ofstream os3("rangeResultSR.txt");
@@ -145,7 +144,7 @@ int main(int argc, char** argv) {
 
   //  initialize smart range factors
   size_t ids[] = { 1, 6, 0, 5 };
-  typedef boost::shared_ptr<SmartRangeFactor> SmartPtr;
+  typedef std::shared_ptr<SmartRangeFactor> SmartPtr;
   map<size_t, SmartPtr> smartFactors;
   if (smart) {
     for(size_t jj: ids) {
@@ -166,7 +165,7 @@ int main(int argc, char** argv) {
     //--------------------------------- odometry loop -----------------------------------------
     double t;
     Pose2 odometry;
-    boost::tie(t, odometry) = timedOdometry;
+    std::tie(t, odometry) = timedOdometry;
     printf("step %d, time = %g\n",(int)i,t);
 
     // add odometry factor
@@ -180,16 +179,17 @@ int main(int argc, char** argv) {
     landmarkEstimates.insert(i, predictedPose);
 
     // Check if there are range factors to be added
-    while (k < K && t >= boost::get<0>(triples[k])) {
-      size_t j = boost::get<1>(triples[k]);
-      double range = boost::get<2>(triples[k]);
+    while (k < K && t >= std::get<0>(triples[k])) {
+      size_t j = std::get<1>(triples[k]);
+      double range = std::get<2>(triples[k]);
       if (i > start) {
         if (smart && totalCount < minK) {
           try {
             smartFactors[j]->addRange(i, range);
             printf("adding range %g for %d",range,(int)j);
           } catch (const invalid_argument& e) {
-            printf("warning: omitting duplicate range %g for %d",range,(int)j);
+            printf("warning: omitting duplicate range %g for %d: %s", range,
+                   (int)j, e.what());
           }
           cout << endl;
         }
@@ -234,9 +234,8 @@ int main(int argc, char** argv) {
         }
       }
       countK = 0;
-      for(const Values::ConstFiltered<Point2>::KeyValuePair& it: result.filter<Point2>())
-        os2 << it.key << "\t" << it.value.x() << "\t" << it.value.y() << "\t1"
-            << endl;
+      for (const auto& [key, point] : result.extract<Point2>())
+        os2 << key << "\t" << point.x() << "\t" << point.y() << "\t1" << endl;
       if (smart) {
         for(size_t jj: ids) {
           Point2 landmark = smartFactors[jj]->triangulate(result);
@@ -257,9 +256,8 @@ int main(int argc, char** argv) {
   // Write result to file
   Values result = isam.calculateEstimate();
   ofstream os("rangeResult.txt");
-  for(const Values::ConstFiltered<Pose2>::KeyValuePair& it: result.filter<Pose2>())
-    os << it.key << "\t" << it.value.x() << "\t" << it.value.y() << "\t"
-        << it.value.theta() << endl;
+  for (const auto& [key, pose] : result.extract<Pose2>())
+    os << key << "\t" << pose.x() << "\t" << pose.y() << "\t" << pose.theta() << endl;
   exit(0);
 }
 

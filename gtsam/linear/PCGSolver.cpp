@@ -22,8 +22,6 @@
 #include <gtsam/linear/Preconditioner.h>
 #include <gtsam/linear/VectorValues.h>
 
-#include <boost/algorithm/string.hpp>
-
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -43,6 +41,17 @@ void PCGSolverParameters::print(ostream &os) const {
 PCGSolver::PCGSolver(const PCGSolverParameters &p) {
   parameters_ = p;
   preconditioner_ = createPreconditioner(p.preconditioner_);
+}
+
+void PCGSolverParameters::setPreconditionerParams(const std::shared_ptr<PreconditionerParameters> preconditioner) {
+  preconditioner_ = preconditioner;
+}
+
+void PCGSolverParameters::print(const std::string &s) const {
+  std::cout << s << std::endl;
+  std::ostringstream os;
+  print(os);
+  std::cout << os.str() << std::endl;
 }
 
 /*****************************************************************************/
@@ -125,6 +134,17 @@ void GaussianFactorGraphSystem::rightPrecondition(const Vector &x,
   preconditioner_.transposeSolve(x, y);
 }
 
+/**********************************************************************************/
+void GaussianFactorGraphSystem::scal(const double alpha, Vector &x) const {
+  x *= alpha;
+}
+double GaussianFactorGraphSystem::dot(const Vector &x, const Vector &y) const {
+  return x.dot(y);
+}
+void GaussianFactorGraphSystem::axpy(const double alpha, const Vector &x,
+                                     Vector &y) const {
+  y += alpha * x;
+}
 /**********************************************************************************/
 VectorValues buildVectorValues(const Vector &v, const Ordering &ordering,
     const map<Key, size_t> & dimensions) {

@@ -31,7 +31,7 @@ namespace gtsam {
   /**
    * A class for a measurement predicted by "between(config[key1],config[key2])"
    * @tparam VALUE the Value type
-   * @addtogroup SLAM
+   * @ingroup slam
    */
   template<class VALUE>
   class TransformBtwRobotsUnaryFactorEM: public NonlinearFactor {
@@ -72,7 +72,7 @@ namespace gtsam {
   public:
 
     // shorthand for a smart pointer to a factor
-    typedef typename boost::shared_ptr<TransformBtwRobotsUnaryFactorEM> shared_ptr;
+    typedef typename std::shared_ptr<TransformBtwRobotsUnaryFactorEM> shared_ptr;
 
     /** default constructor - only use for serialization */
     TransformBtwRobotsUnaryFactorEM() {}
@@ -84,7 +84,7 @@ namespace gtsam {
         const double prior_inlier, const double prior_outlier,
         const bool flag_bump_up_near_zero_probs = false,
         const bool start_with_M_step = false) :
-          Base(cref_list_of<1>(key)), key_(key), measured_(measured), keyA_(keyA), keyB_(keyB),
+          Base(KeyVector{key}), key_(key), measured_(measured), keyA_(keyA), keyB_(keyB),
           model_inlier_(model_inlier), model_outlier_(model_outlier),
           prior_inlier_(prior_inlier), prior_outlier_(prior_outlier), flag_bump_up_near_zero_probs_(flag_bump_up_near_zero_probs),
           start_with_M_step_(false){
@@ -93,17 +93,17 @@ namespace gtsam {
 
     }
 
-    virtual ~TransformBtwRobotsUnaryFactorEM() {}
+    ~TransformBtwRobotsUnaryFactorEM() override {}
 
 
     /** Clone */
-    virtual NonlinearFactor::shared_ptr clone() const { return boost::make_shared<This>(*this); }
+    NonlinearFactor::shared_ptr clone() const override { return std::make_shared<This>(*this); }
 
 
     /** implement functions needed for Testable */
 
     /** print */
-    virtual void print(const std::string& s, const KeyFormatter& keyFormatter = DefaultKeyFormatter) const {
+    void print(const std::string& s, const KeyFormatter& keyFormatter = DefaultKeyFormatter) const override {
       std::cout << s << "TransformBtwRobotsUnaryFactorEM("
           << keyFormatter(key_) << ")\n";
       std::cout << "MR between factor keys: "
@@ -119,7 +119,7 @@ namespace gtsam {
     }
 
     /** equals */
-    virtual bool equals(const NonlinearFactor& f, double tol=1e-9) const {
+    bool equals(const NonlinearFactor& f, double tol=1e-9) const override {
       const This *t =  dynamic_cast<const This*> (&f);
 
       if(t && Base::equals(f))
@@ -151,7 +151,7 @@ namespace gtsam {
     }
 
     /* ************************************************************************* */
-    virtual double error(const Values& x) const {
+    double error(const Values& x) const override {
       return whitenedError(x).squaredNorm();
     }
 
@@ -162,10 +162,10 @@ namespace gtsam {
      * Hence \f$ b = z - h(x) = - \mathtt{error\_vector}(x) \f$
      */
     /* This version of linearize recalculates the noise model each time */
-    virtual boost::shared_ptr<GaussianFactor> linearize(const Values& x) const {
+    std::shared_ptr<GaussianFactor> linearize(const Values& x) const override {
       // Only linearize if the factor is active
       if (!this->active(x))
-        return boost::shared_ptr<JacobianFactor>();
+        return std::shared_ptr<JacobianFactor>();
 
       //std::cout<<"About to linearize"<<std::endl;
       Matrix A1;
@@ -179,8 +179,10 @@ namespace gtsam {
 
 
     /* ************************************************************************* */
-    Vector whitenedError(const Values& x,
-        boost::optional<std::vector<Matrix>&> H = boost::none) const {
+    /** A function overload to accept a vector<matrix> instead of a pointer to
+     * the said type.
+     */
+    Vector whitenedError(const Values& x, OptionalMatrixVecType H = nullptr) const {
 
       bool debug = true;
 
@@ -243,6 +245,11 @@ namespace gtsam {
 
 
       return err_wh_eq;
+    }
+    
+    /* ************************************************************************* */
+    Vector whitenedError(const Values& x, std::vector<Matrix>& H) const {
+      return whitenedError(x, &H);
     }
 
     /* ************************************************************************* */
@@ -401,17 +408,13 @@ namespace gtsam {
 
     /* ************************************************************************* */
 
-    /** number of variables attached to this factor */
-    std::size_t size() const {
-      return 1;
-    }
-
-    virtual size_t dim() const {
+    size_t dim() const override {
       return model_inlier_->R().rows() + model_inlier_->R().cols();
     }
 
   private:
 
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
     /** Serialization function */
     friend class boost::serialization::access;
     template<class ARCHIVE>
@@ -420,6 +423,7 @@ namespace gtsam {
           boost::serialization::base_object<Base>(*this));
       //ar & BOOST_SERIALIZATION_NVP(measured_);
     }
+#endif
   }; // \class TransformBtwRobotsUnaryFactorEM
 
   /// traits

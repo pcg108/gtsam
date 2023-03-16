@@ -19,20 +19,32 @@
 
 #pragma once
 
+#include <array>
+#include <gtsam/config.h>
+#include <gtsam/base/Testable.h>
 #include <gtsam/nonlinear/Expression.h>
 #include <gtsam/nonlinear/NonlinearFactor.h>
-#include <gtsam/base/Testable.h>
+
 #include <numeric>
+#include <utility>
 
 namespace gtsam {
 
 /**
-
- * Factor that supports arbitrary expressions via AD
+ * Factor that supports arbitrary expressions via AD.
+ *
+ * Arbitrary instances of this template can be directly inserted into a factor
+ * graph for optimization. However, to enable the correct (de)serialization of
+ * such instances, the user should declare derived classes from this template,
+ * implementing expresion(), serialize(), clone(), print(), and defining the
+ * corresponding `struct traits<NewFactor> : public Testable<NewFactor> {}`.
+ *
+ * \tparam T Type for measurements.
+ *
  */
-template<typename T>
-class ExpressionFactor: public NoiseModelFactor {
-  BOOST_CONCEPT_ASSERT((IsTestable<T>));
+template <typename T>
+class ExpressionFactor : public NoiseModelFactor {
+  GTSAM_CONCEPT_ASSERT(IsTestable<T>);
 
 protected:
 
@@ -45,7 +57,10 @@ protected:
 
 
  public:
-  typedef boost::shared_ptr<ExpressionFactor<T> > shared_ptr;
+
+  // Provide access to the Matrix& version of unwhitenedError:
+  using NoiseModelFactor::unwhitenedError;
+  typedef std::shared_ptr<ExpressionFactor<T> > shared_ptr;
 
   /**
    * Constructor: creates a factor from a measurement and measurement function
@@ -61,20 +76,20 @@ protected:
   }
 
   /// Destructor
-  virtual ~ExpressionFactor() {}
+  ~ExpressionFactor() override {}
 
   /** return the measurement */
   const T& measured() const { return measured_; }
 
   /// print relies on Testable traits being defined for T
   void print(const std::string& s = "",
-             const KeyFormatter& keyFormatter = DefaultKeyFormatter) const {
+             const KeyFormatter& keyFormatter = DefaultKeyFormatter) const override {
     NoiseModelFactor::print(s, keyFormatter);
     traits<T>::Print(measured_, "ExpressionFactor with measurement: ");
   }
 
   /// equals relies on Testable traits being defined for T
-  bool equals(const NonlinearFactor& f, double tol) const {
+  bool equals(const NonlinearFactor& f, double tol) const override {
     const ExpressionFactor* p = dynamic_cast<const ExpressionFactor*>(&f);
     return p && NoiseModelFactor::equals(f, tol) &&
            traits<T>::Equals(measured_, p->measured_, tol) &&
@@ -86,8 +101,8 @@ protected:
    * We override this method to provide
    * both the function evaluation and its derivative(s) in H.
    */
-  virtual Vector unwhitenedError(const Values& x,
-                                 boost::optional<std::vector<Matrix>&> H = boost::none) const {
+  Vector unwhitenedError(const Values& x,
+    OptionalMatrixVecType H = nullptr) const override {
     if (H) {
       const T value = expression_.valueAndDerivatives(x, keys_, dims_, *H);
       // NOTE(hayk): Doing the reverse, AKA Local(measured_, value) is not correct here
@@ -99,20 +114,20 @@ protected:
     }
   }
 
-  virtual boost::shared_ptr<GaussianFactor> linearize(const Values& x) const {
+  std::shared_ptr<GaussianFactor> linearize(const Values& x) const override {
     // Only linearize if the factor is active
     if (!active(x))
-      return boost::shared_ptr<JacobianFactor>();
+      return std::shared_ptr<JacobianFactor>();
 
     // In case noise model is constrained, we need to provide a noise model
     SharedDiagonal noiseModel;
     if (noiseModel_ && noiseModel_->isConstrained()) {
-      noiseModel = boost::static_pointer_cast<noiseModel::Constrained>(
+      noiseModel = std::static_pointer_cast<noiseModel::Constrained>(
           noiseModel_)->unit();
     }
 
     // Create a writeable JacobianFactor in advance
-    boost::shared_ptr<JacobianFactor> factor(
+    std::shared_ptr<JacobianFactor> factor(
         new JacobianFactor(keys_, dims_, Dim, noiseModel));
 
     // Wrap keys and VerticalBlockMatrix into structure passed to expression_
@@ -134,12 +149,12 @@ protected:
       noiseModel_->WhitenSystem(Ab.matrix(), b);
     }
 
-    return factor;
+    return std::move(factor);
   }
 
   /// @return a deep copy of this factor
-  virtual gtsam::NonlinearFactor::shared_ptr clone() const {
-    return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+  gtsam::NonlinearFactor::shared_ptr clone() const override {
+    return std::static_pointer_cast<gtsam::NonlinearFactor>(
         gtsam::NonlinearFactor::shared_ptr(new This(*this)));
   }
 
@@ -167,7 +182,7 @@ protected:
    if (keys_.empty()) {
      // This is the case when called in ExpressionFactor Constructor.
      // We then take the keys from the expression in sorted order.
-     boost::tie(keys_, dims_) = expression_.keysAndDims();
+     std::tie(keys_, dims_) = expression_.keysAndDims();
    } else {
      // This happens with classes derived from BinaryExpressionFactor etc.
      // In that case, the keys_ are already defined and we just need to grab
@@ -185,6 +200,7 @@ protected:
  }
 
 private:
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
  /// Save to an archive: just saves the base class
  template <class Archive>
  void save(Archive& ar, const unsigned int /*version*/) const {
@@ -205,11 +221,12 @@ private:
  BOOST_SERIALIZATION_SPLIT_MEMBER()
 
  friend class boost::serialization::access;
+#endif
 
  // Alignment, see https://eigen.tuxfamily.org/dox/group__TopicStructHavingEigenMembers.html
  enum { NeedsToAlign = (sizeof(T) % 16) == 0 };
   public:
-	  EIGEN_MAKE_ALIGNED_OPERATOR_NEW_IF(NeedsToAlign)
+	  GTSAM_MAKE_ALIGNED_OPERATOR_NEW_IF(NeedsToAlign)
 };
 // ExpressionFactor
 
@@ -218,62 +235,72 @@ template <typename T>
 struct traits<ExpressionFactor<T> > : public Testable<ExpressionFactor<T> > {};
 
 /**
- * Binary specialization of ExpressionFactor meant as a base class for binary
- * factors. Enforces an 'expression' method with two keys, and provides 'evaluateError'.
- * Derived class (a binary factor!) needs to call 'initialize'.
+ * N-ary variadic template for ExpressionFactor meant as a base class for N-ary
+ * factors. Enforces an 'expression' method with N keys.
+ * Derived class (an N-factor!) needs to call 'initialize'.
+ *
+ * Does not provide backward compatible 'evaluateError'.
+ *
+ * \tparam T Type for measurements. The rest of template arguments are types
+ *         for the N key-indexed Values.
+ *
  */
-template <typename T, typename A1, typename A2>
-class ExpressionFactor2 : public ExpressionFactor<T> {
- public:
-  /// Destructor
-  virtual ~ExpressionFactor2() {}
+template <typename T, typename... Args>
+class ExpressionFactorN : public ExpressionFactor<T> {
+public:
+  static const std::size_t NARY_EXPRESSION_SIZE = sizeof...(Args);
+  using ArrayNKeys = std::array<Key, NARY_EXPRESSION_SIZE>;
+    
+  // Provide access to the Matrix& version of unwhitenedError:
+  using ExpressionFactor<T>::unwhitenedError;
 
-  /// Backwards compatible evaluateError, to make existing tests compile
-  Vector evaluateError(const A1& a1, const A2& a2,
-                       boost::optional<Matrix&> H1 = boost::none,
-                       boost::optional<Matrix&> H2 = boost::none) const {
-    Values values;
-    values.insert(this->keys_[0], a1);
-    values.insert(this->keys_[1], a2);
-    std::vector<Matrix> H(2);
-    Vector error = this->unwhitenedError(values, H);
-    if (H1) (*H1) = H[0];
-    if (H2) (*H2) = H[1];
-    return error;
-  }
+  // Don't provide backward compatible evaluateVector(), due to its problematic
+  // variable length of optional Jacobian arguments. Vector evaluateError(const
+  // Args... args,...);
 
   /// Recreate expression from given keys_ and measured_, used in load
   /// Needed to deserialize a derived factor
-  virtual Expression<T> expression(Key key1, Key key2) const {
-    throw std::runtime_error("ExpressionFactor2::expression not provided: cannot deserialize.");
+  virtual Expression<T> expression(const ArrayNKeys &keys) const {
+    throw std::runtime_error(
+        "ExpressionFactorN::expression not provided: cannot deserialize.");
   }
 
- protected:
+protected:
   /// Default constructor, for serialization
-  ExpressionFactor2() {}
+  ExpressionFactorN() = default;
 
   /// Constructor takes care of keys, but still need to call initialize
-  ExpressionFactor2(Key key1, Key key2,
-                                const SharedNoiseModel& noiseModel,
-                                const T& measurement)
+  ExpressionFactorN(const ArrayNKeys &keys, const SharedNoiseModel &noiseModel,
+                    const T &measurement)
       : ExpressionFactor<T>(noiseModel, measurement) {
-    this->keys_.push_back(key1);
-    this->keys_.push_back(key2);
+    for (const auto &key : keys)
+      Factor::keys_.push_back(key);
   }
 
- private:
+private:
   /// Return an expression that predicts the measurement given Values
-  virtual Expression<T> expression() const {
-    return expression(this->keys_[0], this->keys_[1]);
+  Expression<T> expression() const override {
+    ArrayNKeys keys;
+    int idx = 0;
+    for (const auto &key : Factor::keys_)
+      keys[idx++] = key;
+    return expression(keys);
   }
 
+#ifdef GTSAM_ENABLE_BOOST_SERIALIZATION
   friend class boost::serialization::access;
   template <class ARCHIVE>
-  void serialize(ARCHIVE& ar, const unsigned int /*version*/) {
-    ar& boost::serialization::make_nvp(
-        "ExpressionFactor", boost::serialization::base_object<ExpressionFactor<T> >(*this));
+  void serialize(ARCHIVE &ar, const unsigned int /*version*/) {
+    ar &boost::serialization::make_nvp(
+        "ExpressionFactorN",
+        boost::serialization::base_object<ExpressionFactor<T>>(*this));
   }
+#endif
 };
-// ExpressionFactor2
+/// traits
+template <typename T, typename... Args>
+struct traits<ExpressionFactorN<T, Args...>>
+    : public Testable<ExpressionFactorN<T, Args...>> {};
+// ExpressionFactorN
 
-}// \ namespace gtsam
+} // namespace gtsam

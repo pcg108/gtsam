@@ -21,7 +21,6 @@
 
 #include <gtsam_unstable/linear/LP.h>
 #include <gtsam/linear/GaussianFactorGraph.h>
-#include <CppUnitLite/Test.h>
 
 namespace gtsam {
 /**
@@ -31,7 +30,7 @@ namespace gtsam {
  *    min y
  *    st Ax = b
  *       Cx - y <= d
- * where y \in R, x \in R^n, and Ax = b and Cx <= d is the constraints of the original problem.
+ * where \f$y \in R\f$, \f$x \in R^n\f$, and Ax = b and Cx <= d is the constraints of the original problem.
  *
  * If the solution for this problem {x*,y*} has y* <= 0, we'll have x* a feasible initial point
  * of the original problem
@@ -83,7 +82,7 @@ private:
       const InequalityFactorGraph& inequalities) const;
 
   // friend class for unit-testing private methods
-  FRIEND_TEST(LPInitSolver, initialization);
+  friend class LPInitSolverInitializationTest;
 };
 
 }

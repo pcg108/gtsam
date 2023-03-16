@@ -32,7 +32,7 @@ class LinearCost: public JacobianFactor {
 public:
   typedef LinearCost This; ///< Typedef to this class
   typedef JacobianFactor Base; ///< Typedef to base class
-  typedef boost::shared_ptr<This> shared_ptr; ///< shared_ptr to this class
+  typedef std::shared_ptr<This> shared_ptr; ///< shared_ptr to this class
 
 public:
   /** default constructor for I/O */
@@ -84,24 +84,24 @@ public:
   }
 
   /** Virtual destructor */
-  virtual ~LinearCost() {
+  ~LinearCost() override {
   }
 
   /** equals */
-  virtual bool equals(const GaussianFactor& lf, double tol = 1e-9) const {
+  bool equals(const GaussianFactor& lf, double tol = 1e-9) const override {
     return Base::equals(lf, tol);
   }
 
   /** print */
-  virtual void print(const std::string& s = "", const KeyFormatter& formatter =
-      DefaultKeyFormatter) const {
+  void print(const std::string& s = "", const KeyFormatter& formatter =
+      DefaultKeyFormatter) const override {
     Base::print(s + " LinearCost: ", formatter);
   }
 
   /** Clone this LinearCost */
-  virtual GaussianFactor::shared_ptr clone() const {
-    return boost::static_pointer_cast < GaussianFactor
-        > (boost::make_shared < LinearCost > (*this));
+  GaussianFactor::shared_ptr clone() const override {
+    return std::static_pointer_cast < GaussianFactor
+        > (std::make_shared < LinearCost > (*this));
   }
 
   /** Special error_vector for constraints (A*x-b) */
@@ -110,7 +110,7 @@ public:
   }
 
   /** Special error for single-valued inequality constraints. */
-  virtual double error(const VectorValues& c) const {
+  double error(const VectorValues& c) const override {
     return error_vector(c)[0];
   }
 };
