@@ -6,6 +6,10 @@ if(NOT DEFINED CMAKE_MACOSX_RPATH)
   set(CMAKE_MACOSX_RPATH 0)
 endif()
 
+if (POLICY CMP0077)
+    cmake_policy(SET CMP0077 NEW)
+endif()
+
 # Set the version number for the library
 set (GTSAM_VERSION_MAJOR 4)
 set (GTSAM_VERSION_MINOR 3)
