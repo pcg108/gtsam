@@ -1,12 +1,6 @@
 ###############################################################################
-# Option for using system Eigen or GTSAM-bundled Eigen
-option(GTSAM_USE_SYSTEM_EIGEN "Find and use system-installed Eigen. If 'off', use the one bundled with GTSAM" OFF)
-
-if(NOT GTSAM_USE_SYSTEM_EIGEN)
-  # This option only makes sense if using the embedded copy of Eigen, it is
-  # used to decide whether to *install* the "unsupported" module:
-  option(GTSAM_WITH_EIGEN_UNSUPPORTED "Install Eigen's unsupported modules" OFF)
-endif()
+# For ILLIXR the system Eigen must be used.
+option(GTSAM_USE_SYSTEM_EIGEN "Find and use system-installed Eigen. If 'off', use the one bundled with GTSAM" ON)
 
 # Switch for using system Eigen or GTSAM-bundled Eigen
 if(GTSAM_USE_SYSTEM_EIGEN)
@@ -31,6 +25,7 @@ if(GTSAM_USE_SYSTEM_EIGEN)
         message(FATAL_ERROR "MKL does not work with Eigen 3.3.4 because of a bug in Eigen. See http://eigen.tuxfamily.org/bz/show_bug.cgi?id=1527. Disable GTSAM_USE_SYSTEM_EIGEN to use GTSAM's copy of Eigen, disable GTSAM_WITH_EIGEN_MKL, or upgrade/patch your installation of Eigen.")
     endif()
 else()
+    message(FATAL_ERROR "For ILLIXR the system Eigen must be used for compatability with other plugins and dependencies.")
     # Use bundled Eigen include path.
     # Clear any variables set by FindEigen3
     if(EIGEN3_INCLUDE_DIR)
