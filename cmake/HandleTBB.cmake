@@ -1,6 +1,8 @@
 ###############################################################################
 # Find TBB
-find_package(TBB 4.4 COMPONENTS tbb tbbmalloc)
+if (GTSAM_WITH_TBB)
+    find_package(TBB 4.4 COMPONENTS tbb tbbmalloc)
+endif()
 
 # Set up variables if we're using TBB
 if(TBB_FOUND AND GTSAM_WITH_TBB)
