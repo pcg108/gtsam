@@ -9,10 +9,9 @@ if(NOT GTSAM_USE_SYSTEM_EIGEN)
   option(GTSAM_WITH_EIGEN_UNSUPPORTED "Install Eigen's unsupported modules" OFF)
 endif()
 
-add_definitions(-DEIGEN_USE_BLAS=1)
-
 # Switch for using system Eigen or GTSAM-bundled Eigen
 if(GTSAM_USE_SYSTEM_EIGEN)
+
     find_package(Eigen3 REQUIRED)
 
     # Use generic Eigen include paths e.g. <Eigen/Core>
@@ -38,6 +37,8 @@ else()
     if(EIGEN3_INCLUDE_DIR)
         set(EIGEN3_INCLUDE_DIR NOTFOUND CACHE STRING "" FORCE)
     endif()
+
+    add_definitions(-DEIGEN_USE_BLAS=1)
 
     # set full path to be used by external projects
     # this will be added to GTSAM_INCLUDE_DIR by gtsam_extra.cmake.in

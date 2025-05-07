@@ -17,14 +17,6 @@ set (gtsam_subdirs
 	  navigation
 )
 
-set(NOFORTRAN "1")
-set(DYNAMIC_ARCH OFF)
-set(BUILD_WITHOUT_LAPACK OFF)
-set(BUILD_TESTING OFF)
-set(BUILD_BENCHMARKS OFF)
-set(TARGET "RISCV64_ZVL256B")
-add_subdirectory(${CMAKE_SOURCE_DIR}/external/OpenBLAS)
-
 set(gtsam_srcs)
 
 # Build 3rdparty separately
@@ -112,8 +104,6 @@ message(STATUS "Building GTSAM - shared: ${BUILD_SHARED_LIBS}")
 add_library(gtsam ${gtsam_srcs})
 target_link_libraries(gtsam PUBLIC ${GTSAM_BOOST_LIBRARIES})
 target_link_libraries(gtsam PUBLIC ${GTSAM_ADDITIONAL_LIBRARIES})
-
-target_link_libraries(gtsam PUBLIC openblas_static)
 
 # Apply build flags:
 gtsam_apply_build_flags(gtsam)
