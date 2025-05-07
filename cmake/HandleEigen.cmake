@@ -39,6 +39,7 @@ else()
     endif()
 
     add_definitions(-DEIGEN_USE_BLAS=1)
+    set(BUILD_TESTING OFF)
 
     # set full path to be used by external projects
     # this will be added to GTSAM_INCLUDE_DIR by gtsam_extra.cmake.in
