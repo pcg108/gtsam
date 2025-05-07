@@ -9,6 +9,8 @@ if(NOT GTSAM_USE_SYSTEM_EIGEN)
   option(GTSAM_WITH_EIGEN_UNSUPPORTED "Install Eigen's unsupported modules" OFF)
 endif()
 
+add_definitions(-DEIGEN_USE_BLAS=1)
+
 # Switch for using system Eigen or GTSAM-bundled Eigen
 if(GTSAM_USE_SYSTEM_EIGEN)
     find_package(Eigen3 REQUIRED)
