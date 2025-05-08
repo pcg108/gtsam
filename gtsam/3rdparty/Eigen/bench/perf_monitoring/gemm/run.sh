@@ -97,7 +97,7 @@ function test_current
 #  echo $update et $selected et $rev_found because $rev et "$global_args"
 #  echo $count_rev et $count_ref
   if [ $update == true ] || [ $count_rev != $count_ref ] || ([ $selected == true ] &&  [ $rev_found == true ]); then
-    if $CXX -O2 -DNDEBUG -march=native $CXX_FLAGS -I eigen_src $bench.cpp -DSCALAR=$scalar -o $name; then
+    if $CXX -O2 -DNDEBUG -march=rv64gcv -mabi=lp64d $CXX_FLAGS -I eigen_src $bench.cpp -DSCALAR=$scalar -o $name; then
       curr=`./$name`
       if [ $count_rev == $count_ref ]; then
         echo "merge previous $prev"
