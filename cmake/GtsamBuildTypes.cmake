@@ -190,7 +190,7 @@ if (NOT MSVC)
   if(GTSAM_BUILD_WITH_MARCH_NATIVE)
     # Add as public flag so all dependant projects also use it, as required
     # by Eigen to avid crashes due to SIMD vectorization:
-    list_append_cache(GTSAM_COMPILE_OPTIONS_PUBLIC "-march=rv64gcv -mabi=lp64d")
+    list_append_cache(GTSAM_COMPILE_OPTIONS_PUBLIC "-march=rv64gcv")
   endif()
 endif()
 
