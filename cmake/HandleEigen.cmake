@@ -12,6 +12,7 @@ endif()
 # Switch for using system Eigen or GTSAM-bundled Eigen
 if(GTSAM_USE_SYSTEM_EIGEN)
 
+    add_definitions(-DEIGEN_USE_BLAS=1)
     find_package(Eigen3 REQUIRED)
 
     # Use generic Eigen include paths e.g. <Eigen/Core>

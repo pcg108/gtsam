@@ -29,6 +29,14 @@ set (3rdparty_srcs
  ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SuiteSparse_config/SuiteSparse_config.c)
 gtsam_assign_source_folders("${3rdparty_srcs}") # Create MSVC structure
 
+set(NOFORTRAN "1")
+set(DYNAMIC_ARCH OFF)
+set(BUILD_WITHOUT_LAPACK ON)
+set(BUILD_BENCHMARKS OFF)
+set(TARGET "RISCV64_ZVL256B")
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/OpenBLAS)
+
+
 # To exclude a source from the library build (in any subfolder)
 # Add the full name to this list, as in the following example
 # Sources to remove from builds
@@ -104,6 +112,7 @@ message(STATUS "Building GTSAM - shared: ${BUILD_SHARED_LIBS}")
 add_library(gtsam ${gtsam_srcs})
 target_link_libraries(gtsam PUBLIC ${GTSAM_BOOST_LIBRARIES})
 target_link_libraries(gtsam PUBLIC ${GTSAM_ADDITIONAL_LIBRARIES})
+target_link_libraries(gtsam PUBLIC openblas_static)
 
 # Apply build flags:
 gtsam_apply_build_flags(gtsam)
