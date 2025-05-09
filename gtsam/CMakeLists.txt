@@ -119,7 +119,7 @@ message(STATUS "Building GTSAM - shared: ${BUILD_SHARED_LIBS}")
 add_library(gtsam ${gtsam_srcs})
 target_link_libraries(gtsam PUBLIC ${GTSAM_BOOST_LIBRARIES})
 target_link_libraries(gtsam PUBLIC ${GTSAM_ADDITIONAL_LIBRARIES})
-target_link_libraries(gtsam PUBLIC openblas_static)
+target_link_libraries(gtsam PUBLIC OpenBLAS::OpenBLAS)
 
 # Apply build flags:
 gtsam_apply_build_flags(gtsam)
