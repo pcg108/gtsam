@@ -38,7 +38,10 @@ set(DYNAMIC_ARCH OFF)
 set(BUILD_WITHOUT_LAPACK ON)
 set(BUILD_BENCHMARKS OFF)
 set(TARGET "RISCV64_ZVL256B")
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/OpenBLAS)
+
+
+# add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/OpenBLAS)
+find_package(OpenBLAS REQUIRED)
 
 
 # To exclude a source from the library build (in any subfolder)
