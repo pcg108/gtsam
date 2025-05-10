@@ -136,9 +136,12 @@ set_target_properties(gtsam PROPERTIES
     SOVERSION           ${gtsam_soversion}
     LINKER_LANGUAGE     CXX)
 
+add_definitions(-DEIGEN_USE_BLAS=1)
+find_package(OpenBLAS REQUIRED)
+
 # Append Eigen include path to either
 # system-eigen, or GTSAM eigen path
-target_link_libraries(gtsam PUBLIC Eigen3::Eigen)
+target_link_libraries(gtsam PUBLIC Eigen3::Eigen OpenBLAS::OpenBLAS)
 
 # MKL include dir:
 if (GTSAM_USE_EIGEN_MKL)

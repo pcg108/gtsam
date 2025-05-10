@@ -5,6 +5,7 @@ option(GTSAM_USE_SYSTEM_EIGEN "Find and use system-installed Eigen. If 'off', us
 # Switch for using system Eigen or GTSAM-bundled Eigen
 if(GTSAM_USE_SYSTEM_EIGEN)
     # Since Eigen 3.3.0 a Eigen3Config.cmake is available so use it.
+    add_definitions(-DEIGEN_USE_BLAS=1)
     find_package(Eigen3 CONFIG REQUIRED) # need to find again as REQUIRED
 
     # The actual include directory (for BUILD cmake target interface):
@@ -31,6 +32,8 @@ else()
     if(EIGEN3_INCLUDE_DIR)
         set(EIGEN3_INCLUDE_DIR NOTFOUND CACHE STRING "" FORCE)
     endif()
+
+    add_definitions(-DEIGEN_USE_BLAS=1)
 
     # set full path to be used by external projects
     # this will be added to GTSAM_INCLUDE_DIR by gtsam_extra.cmake.in
