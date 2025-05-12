@@ -1,6 +1,6 @@
 project(gtsam LANGUAGES CXX)
 
-set(RVV_ARCH_FLAGS "-march=rv64gcv -mabi=lp64d")
+set(RVV_ARCH_FLAGS "-march=rv64gc -mabi=lp64d")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${RVV_ARCH_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RVV_ARCH_FLAGS}")
 
@@ -33,11 +33,11 @@ set (3rdparty_srcs
  ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SuiteSparse_config/SuiteSparse_config.c)
 gtsam_assign_source_folders("${3rdparty_srcs}") # Create MSVC structure
 
-set(NOFORTRAN "1")
-set(DYNAMIC_ARCH OFF)
-set(BUILD_WITHOUT_LAPACK ON)
-set(BUILD_BENCHMARKS OFF)
-set(TARGET "RISCV64_ZVL256B")
+# set(NOFORTRAN "1")
+# set(DYNAMIC_ARCH OFF)
+# set(BUILD_WITHOUT_LAPACK ON)
+# set(BUILD_BENCHMARKS OFF)
+# set(TARGET "RISCV64_ZVL256B")
 
 
 # add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/OpenBLAS)
