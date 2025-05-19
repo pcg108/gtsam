@@ -42,6 +42,7 @@ gtsam_assign_source_folders("${3rdparty_srcs}") # Create MSVC structure
 
 # add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/OpenBLAS)
 find_package(OpenBLAS REQUIRED)
+add_definitions(-DEIGEN_USE_BLAS=1)
 
 
 # To exclude a source from the library build (in any subfolder)
