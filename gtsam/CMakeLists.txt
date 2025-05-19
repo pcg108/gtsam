@@ -132,6 +132,7 @@ message(STATUS "Building GTSAM - as a ${GTSAM_LIBRARY_TYPE} library")
 add_library(gtsam ${GTSAM_LIBRARY_TYPE} ${gtsam_srcs})
 target_link_libraries(gtsam PUBLIC ${GTSAM_BOOST_LIBRARIES})
 target_link_libraries(gtsam PUBLIC ${GTSAM_ADDITIONAL_LIBRARIES})
+target_link_libraries(gtsam PUBLIC OpenBLAS::OpenBLAS)
 
 # Apply build flags:
 gtsam_apply_build_flags(gtsam)
