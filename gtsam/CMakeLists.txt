@@ -1,5 +1,9 @@
 project(gtsam LANGUAGES CXX)
 
+set(RVV_ARCH_FLAGS "-march=rv64gcv -mabi=lp64d")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${RVV_ARCH_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RVV_ARCH_FLAGS}")
+
 # We split the library in to separate subfolders, each containing
 # tests, timing, and an optional convenience library.
 # The following variable is the master list of subdirs to add
@@ -30,6 +34,9 @@ set (3rdparty_srcs
  ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/CCOLAMD/Source/ccolamd.c
  ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SuiteSparse_config/SuiteSparse_config.c)
 gtsam_assign_source_folders("${3rdparty_srcs}") # Create MSVC structure
+
+find_package(OpenBLAS REQUIRED)
+add_definitions(-DEIGEN_USE_BLAS=1)
 
 # To exclude a source from the library build (in any subfolder)
 # Add the full name to this list, as in the following example
