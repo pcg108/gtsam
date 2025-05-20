@@ -35,8 +35,6 @@ set (3rdparty_srcs
  ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SuiteSparse_config/SuiteSparse_config.c)
 gtsam_assign_source_folders("${3rdparty_srcs}") # Create MSVC structure
 
-find_package(OpenBLAS REQUIRED)
-add_definitions(-DEIGEN_USE_BLAS=1)
 
 # To exclude a source from the library build (in any subfolder)
 # Add the full name to this list, as in the following example
@@ -132,7 +130,6 @@ message(STATUS "Building GTSAM - as a ${GTSAM_LIBRARY_TYPE} library")
 add_library(gtsam ${GTSAM_LIBRARY_TYPE} ${gtsam_srcs})
 target_link_libraries(gtsam PUBLIC ${GTSAM_BOOST_LIBRARIES})
 target_link_libraries(gtsam PUBLIC ${GTSAM_ADDITIONAL_LIBRARIES})
-target_link_libraries(gtsam PUBLIC OpenBLAS::OpenBLAS)
 
 # Apply build flags:
 gtsam_apply_build_flags(gtsam)
@@ -144,12 +141,10 @@ set_target_properties(gtsam PROPERTIES
     SOVERSION           ${gtsam_soversion}
     LINKER_LANGUAGE     CXX)
 
-add_definitions(-DEIGEN_USE_BLAS=1)
-find_package(OpenBLAS REQUIRED)
 
 # Append Eigen include path to either
 # system-eigen, or GTSAM eigen path
-target_link_libraries(gtsam PUBLIC Eigen3::Eigen OpenBLAS::OpenBLAS)
+target_link_libraries(gtsam PUBLIC Eigen3::Eigen)
 
 # MKL include dir:
 if (GTSAM_USE_EIGEN_MKL)
